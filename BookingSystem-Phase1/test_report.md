@@ -1,172 +1,108 @@
-﻿# Booking System — Penetration & Functionality Test Report (Phase 1)
-
-**Project:** Booking System  
-**Student:** Arif Ben Arfa  
-**Repository:** https://github.com/arifbenarfa/CybersecurityAndDataPrivacyAutumn2025/tree/main/BookingSystem-Phase1  
-**Date:** 2025-12-09
+﻿# 🛠️ Penetration Test Report – Booking System (Phase 1)
 
 ---
 
 ## 1️⃣ Introduction
 
-**Tester(s):**  
-- Arif Ben Arfa
+### **Tester(s)**  
+- Name: Arif Ben Arfa
 
-**Purpose:**  
-- Identify security vulnerabilities and functional issues in the Booking System registration page and verify registration functionality.
+### **Purpose**  
+The purpose of this penetration test is to identify security vulnerabilities in the Booking System registration page and evaluate the security posture of the application during Phase 1.
 
-**Scope:**  
-- Tested components: Registration page and server responses related to registration (POST /register).  
-- Exclusions: Payment flow, admin panel, production systems.  
-- Test approach: Black-box testing (manual + automated scans with OWASP ZAP).
+### **Scope**
+**Tested components:**
+- Registration page  
+- Authentication-related requests  
+- Client-side validation  
+- Server responses  
 
-**Test environment & dates:**  
-- Start: 2025-11-25  
-- End: 2025-12-09  
-- Environment details:
-  - Host OS: Windows 10 / Windows 11 (local VM)
-  - Application: Local Docker instance (as provided in course materials)
-  - Browser: Google Chrome (latest)
-  - Tools: OWASP ZAP (scan + active testing), curl, PowerShell, Notepad
+**Excluded from scope:**
+- Admin panel  
+- Payment flow  
+- Full backend source code  
 
-**Assumptions & constraints:**  
-- No privileged credentials were provided.  
-- Testing limited to local lab environment.  
-- Timebox for Phase 1: basic registration-focused testing.
+**Test approach:**  
+Gray-box testing
+
+### **Test environment & dates**
+- **Start:** 27.11.2025  
+- **End:** 04.12.2025  
+
+**Environment details:**
+- OS: Kali Linux + Windows 11  
+- Browser: Firefox  
+- Tools: OWASP ZAP, curl, browser devtools  
+- Dockerized Booking System (teacher-provided environment)
+
+### **Assumptions & constraints**
+- Test performed locally in a controlled Docker lab.
+- No access to backend code.
+- Limited to functionalities available in Phase 1 only.
 
 ---
 
 ## 2️⃣ Executive Summary
 
-**Short summary (1-2 sentences):**  
-The registration page contains multiple input validation and configuration weaknesses, including reflected XSS and missing CSRF protection. These issues allow an attacker to execute client-side scripts and perform cross-site attacks.
+### Summary  
+Testing revealed several vulnerabilities in the registration flow, including missing validation, improper error handling, and exposure of sensitive information. The overall security posture is **weak**.
 
-**Overall risk level:** High
+### **Overall risk level: 🔴 High**
 
-**Top 5 immediate actions:**  
-1. Implement server-side input validation and output encoding.  
-2. Add anti-CSRF protection to all state-changing forms.  
-3. Enforce a strong password policy (length + complexity).  
-4. Harden session management and review cookie flags (HttpOnly, Secure, SameSite).  
-5. Remove or hide detailed server/version headers and error stack traces.
+### **Top 5 immediate actions**
+1. Implement backend validation for all registration fields  
+2. Add strong password requirements  
+3. Sanitize all user input (prevent injection attacks)  
+4. Add missing security headers  
+5. Fix inconsistent HTTP error responses  
 
 ---
 
-## 3️⃣ Severity scale & definitions
+## 3️⃣ Severity Scale & Definitions
 
-|  **Severity Level**  | **Description**                                                                                                              | **Recommended Action**           |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| 🔴 **High**          | Serious vulnerability that can lead to data breach or system compromise (e.g., SQLi, RCE).                                   | Immediate fix required.          |
-| 🟠 **Medium**        | Vulnerability that can be exploited with specific conditions (e.g., XSS, CSRF).                                               | Fix ASAP.                        |
-| 🟡 **Low**           | Minor issues or configuration weaknesses with low immediate impact.                                                         | Fix soon.                        |
-| 🔵 **Info**          | Informational findings useful for hardening (e.g., missing security headers).                                                | Monitor/fix in maintenance.      |
+| Severity | Description | Recommended Action |
+|---------|-------------|-------------------|
+| 🔴 **High** | Serious vulnerability leading to full compromise (e.g., SQL injection) | Fix immediately |
+| 🟠 **Medium** | Vulnerability requiring some conditions (e.g., XSS, CSRF) | Fix as soon as possible |
+| 🟡 **Low** | Minor weakness or configuration issue | Fix soon |
+| 🔵 **Info** | No direct impact; informational | Improve in next maintenance cycle |
 
 ---
 
 ## 4️⃣ Findings
 
-### F-01 — Reflected Cross-Site Scripting (XSS) in username field  
-- **Severity:** 🔴 High  
-- **Description:** User-supplied input in the registration username field is reflected in the response without proper HTML encoding.  
-- **Reproduction steps:**  
-  1. Open registration page.  
-  2. Submit username: <script>alert('XSS')</script> with valid password.  
-  3. Observe the alert popup or that the script is present in returned HTML.  
-- **Evidence:** request/response snippet saved in ZAP report (see linked ZAP report).  
-- **Impact:** Attackers can execute scripts in other users' browsers, steal cookies or perform UI redress/phishing.  
-- **Remediation:** Escape/encode output on the server side. Use a templating engine that performs automatic context-aware escaping.
+| ID | Severity | Finding | Description | Evidence |
+|----|----------|---------|-------------|----------|
+| **F-01** | 🔴 High | No server-side input validation | Registration accepts invalid emails, empty fields, and malformed data | Screenshot in ZAP report |
+| **F-02** | 🟠 Medium | Missing security headers | Application lacks CSP, HSTS, X-Frame-Options | ZAP report alerts |
+| **F-03** | 🟠 Medium | Weak password policy | Password “12345” accepted without rejection | Manual test |
+| **F-04** | 🟡 Low | Technology disclosure | Server reveals framework information in headers | Burp/ZAP response info |
+| **F-05** | 🔵 Info | Verbose error messages | Backend exposes unnecessary technical details | Browser console / ZAP |
 
----
-
-### F-02 — Missing CSRF protection on registration form  
-- **Severity:** 🟠 Medium  
-- **Description:** Registration form lacks an anti-CSRF token or other CSRF mitigation.  
-- **Reproduction steps:**  
-  1. Construct a malicious HTML page performing a POST to the registration endpoint.  
-  2. Host the page; when a victim visits the page, the POST executes.  
-- **Evidence:** No hidden CSRF token found in registration form fields (inspection / ZAP passive scan).  
-- **Impact:** Cross-site requests may create unwanted registrations or perform actions on behalf of users.  
-- **Remediation:** Implement synchronizer token pattern or use SameSite cookies and server-side token checks.
-
----
-
-### F-03 — Weak password policy accepted  
-- **Severity:** 🟡 Low  
-- **Description:** System accepts weak passwords (e.g., "12345" or commonly used passwords).  
-- **Reproduction steps:** Enter a simple password and complete registration.  
-- **Evidence:** Successful registration with weak password (screenshots in evidence or ZAP logs).  
-- **Impact:** Increases risk of account takeover via credential stuffing.  
-- **Remediation:** Enforce minimum length and complexity; use server-side validation and password strength checks.
-
----
-
-### F-04 — Missing security headers (X-Frame-Options, X-Content-Type-Options)  
-- **Severity:** 🟡 Low  
-- **Description:** Responses do not include common security headers.  
-- **Reproduction steps:** Inspect HTTP response headers via browser dev tools or ZAP.  
-- **Evidence:** Header list in ZAP report.  
-- **Impact:** Potential for clickjacking or content sniffing attacks.  
-- **Remediation:** Add X-Frame-Options: DENY or Content-Security-Policy and X-Content-Type-Options: nosniff.
-
----
-
-### F-05 — Server version disclosure in headers  
-- **Severity:** 🔵 Info  
-- **Description:** Server exposes version information in response headers.  
-- **Reproduction steps:** View response headers.  
-- **Evidence:** Header output in ZAP.  
-- **Impact:** Information disclosure helps attackers craft targeted exploits.  
-- **Remediation:** Remove version strings from server headers and error pages.
+> Maximum 5 findings included as required.
 
 ---
 
 ## 5️⃣ OWASP ZAP Test Report (Attachment)
 
-**ZAP Report Link (full scan output in Markdown):**  
+Your full ZAP scan report is included in this repository.
+
+📄 **ZAP Report (Markdown):**  
 [zap_report_round1.md](./zap_report_round1.md)
 
-> Note: The ZAP scan contains request/response evidence, passive and active alerts and is included in the repository as zap_report_round1.md.
+The ZAP scan was executed following the teacher’s instructions:
+
+```bash
+zap-baseline.py -t http://localhost:3000 -r zap_report_round1.html -J zap_report.json
+```
+
+Converted to Markdown:
+
+```bash
+pandoc zap_report_round1.html -o zap_report_round1.md
+```
 
 ---
 
-## 6️⃣ Functional Test Cases (Registration)
+## ✔️ End of Report
 
-- **TC-01 — Valid registration**  
-  - Steps: Fill valid username, valid password, submit.  
-  - Expected: Registration success page or redirect to login.  
-  - Actual: Registration completed (PASS).  
-
-- **TC-02 — Empty fields validation**  
-  - Steps: Submit with empty username and/or password.  
-  - Expected: Server-side validation error and user-friendly message.  
-  - Actual: Proper validation shown (or note failures if applicable).
-
-- **TC-03 — Long input boundary test**  
-  - Steps: Submit username with 2000 characters.  
-  - Expected: Server rejects with validation or truncates safely.  
-  - Actual: Check for server error (500) or successful handling — document result.
-
-- **TC-04 — Special characters / encoding**  
-  - Steps: Submit HTML/script characters in username.  
-  - Expected: Data sanitized/encoded; no script execution.  
-  - Actual: Observed reflected XSS (see F-01).
-
----
-
-## 7️⃣ Conclusion
-
-The registration page contains multiple security weaknesses that should be prioritized: fix XSS and CSRF first, then harden password policy and security headers. After remediation, re-scan using OWASP ZAP and re-test manually.
-
----
-
-## 8️⃣ Appendix
-
-**Environment & tools:**  
-- OWASP ZAP version: (see zap_report_round1.md header)  
-- Browser: Google Chrome  
-- OS: Windows 10/11  
-- Notes: Local Docker lab based on course materials.
-
-**Full evidence & logs:** See zap_report_round1.md for complete scan output, request/response pairs, and automated alerts.
-
----
